@@ -1,0 +1,95 @@
+package com.dice.backend.service.impl.user.bot;
+
+import com.dice.backend.mapper.BotMapper;
+import com.dice.backend.pojo.Bot;
+import com.dice.backend.pojo.User;
+import com.dice.backend.service.impl.utils.UserDetailsImpl;
+import com.dice.backend.service.user.bot.UpdateService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.stereotype.Service;
+
+import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
+
+@Service
+public class UpdateServiceImpl implements UpdateService {
+    @Autowired
+    private BotMapper botMapper;
+
+    @Override
+    public Map<String, String> update(Map<String, String> data) {
+        UsernamePasswordAuthenticationToken authenticationToken =
+                (UsernamePasswordAuthenticationToken) SecurityContextHolder.getContext().getAuthentication();
+        UserDetailsImpl loginUser = (UserDetailsImpl) authenticationToken.getPrincipal();
+        User user = loginUser.getUser();
+
+        int bot_id = Integer.parseInt(data.get("bot_id"));
+
+        String title = data.get("title");
+        String description = data.get("description");
+        String content = data.get("content");
+        Map<String, String> map = new HashMap<>();
+        //System.out.println(description);
+        Bot bot=botMapper.selectById(bot_id);
+        if (title == null || title.length() == 0) {
+            map.put("error_message", "联系人姓名不能为空");
+            map.put("title",bot.getTitle());
+            map.put("description",bot.getDescription());
+            return map;
+        }
+
+        if (title.length() > 100) {
+            map.put("error_message", "联系人姓名长度不能大于100");
+            map.put("title",bot.getTitle());
+            map.put("description",bot.getDescription());
+            return map;
+        }
+
+
+        if (description.length() != 11) {
+            map.put("error_message", "电话号码长度必须为11位");
+            map.put("description",bot.getDescription());
+            map.put("title",bot.getTitle());
+            return map;
+        }
+
+        if (description == null || description.length() == 0) {
+            map.put("error_message", "电话号码不能为空");
+            map.put("description",bot.getDescription());
+            map.put("title",bot.getTitle());
+            return map;
+        }
+
+
+        if (bot == null) {
+            map.put("error_message", "Bot不存在或已被删除");
+            return map;
+        }
+
+        if (!bot.getUserId().equals(user.getId())) {
+            map.put("error_message", "没有权限修改该Bot");
+            return map;
+        }
+
+        Bot new_bot = new Bot(
+                bot.getId(),
+                user.getId(),
+                title,
+                description,
+                content,
+                bot.getRating(),
+                bot.getCreatetime(),
+                new Date()
+        );
+
+        botMapper.updateById(new_bot);
+
+        map.put("error_message", "success");
+
+        return map;
+    }
+}
+
